@@ -7,9 +7,33 @@ from auth import auth_bp
 from middleware import init_jwt
 from config import Config
 from proxy import Proxy
+import logging
+from logging.handlers import RotatingFileHandler
+
+# Set up logging
+logging.basicConfig(
+    filename='app.log',
+    level=logging.DEBUG,
+    format='%(asctime)s %(levelname)s: %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS if needed
+# CORS(app)  # Enable CORS if needed
+CORS(app, resources={
+    r"/*": {
+        "origins": ["http://localhost:9011", "http://pbrs-fe-dev:5173"],  # Add both host and container URLs
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"]
+    }
+})
+
+# Add logging middleware
+# @app.before_request
+# def log_request_info():
+#     logger.debug('Headers: %s', request.headers)
+#     logger.debug('Body: %s', request.get_data())
+#     logger.debug('URL: %s', request.url)
 
 app.config.from_object(Config)
 
@@ -42,30 +66,34 @@ def role_required(role):
 # Define unprotected route
 @app.route('/service/public/<path:path>', methods=['GET', 'POST'])
 def unprotected_service_route(path):
-    return proxy.forward_request('http://api-gateway:5000/service/public/' + path, request)
+    return proxy.forward_request('http://pbrs-api-gateway:5000/service/public/' + path, request)
 
 # Define protected route that forwards requests
 @app.route('/service/protected/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
 @jwt_required()
 def protected_service_route(path):
-    return proxy.forward_request('http://api-gateway:5000/service/protected/' + path, request)
+    return proxy.forward_request('http://pbrs-api-gateway:5000/service/protected/' + path, request)
 
 # Example of a protected route to another service
 @app.route('/user-service/public/<path:path>', methods=['GET'])
 def unprotected_user_service_route(path):
-    return proxy.forward_request('http://pbrs-user-service-1:8080/user-service/public/' + path, request)
+    return proxy.forward_request('http://pbrs-user-service:8080/user-service/public/' + path, request)
 
 # Define another protected route for a different service
 @app.route('/user-service/protected/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
 @jwt_required()
 def protected_user_service_route(path):
-    return proxy.forward_request('http://user-service:8080/user-service/protected/' + path, request)
+    return proxy.forward_request('http://pbrs-user-service:8080/user-service/protected/' + path, request)
 
-@app.route("/book-service/protected", methods=["POST"])
+@app.route("/book-service/public/<path:path>", methods=['GET', 'POST'])
+def unprotected_book_service_route(path):
+    return proxy.forward_request('http://pbrs-book-service:8080/book-service/public/' + path, request)
+
+@app.route("/book-service/protected", methods=['POST'])
 @jwt_required()
 @role_required("ADMIN")
 def add_book():
-    return proxy.forward_request('http://user-service:8080/user-service/protected/' + path, request)
+    return proxy.forward_request('http://pbrs-book-service:8080/book-service/protected/' + path, request)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

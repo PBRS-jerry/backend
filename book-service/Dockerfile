@@ -22,4 +22,4 @@ RUN ./gradlew build -x test
 EXPOSE 8080
 
 # Define the command to run the application
-CMD ["java", "-jar", "build/libs/user-service-0.0.1-SNAPSHOT.jar"]
+CMD ["java", "-jar", "build/libs/book-service-0.0.1-SNAPSHOT.jar"]
