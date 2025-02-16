@@ -18,5 +18,5 @@ def init_jwt(app):
         }), 401
 
     @jwt.invalid_token_loader
-    def invalid_token_response(jwt_header, jwt_payload):
+    def invalid_token_response(err):
         return jsonify({'msg': 'Invalid token'}), 401

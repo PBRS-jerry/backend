@@ -1,5 +1,7 @@
+import logging
+
 from flask import Blueprint, request, jsonify, redirect, url_for, session
-from flask_jwt_extended import create_access_token, create_refresh_token, get_jwt_identity, jwt_required
+from flask_jwt_extended import create_access_token, create_refresh_token, get_jwt_identity, jwt_required, get_jwt
 from authlib.integrations.flask_client import OAuth
 # from werkzeug.security import generate_password_hash
 import psycopg2
@@ -82,15 +84,15 @@ def login():
     cur = conn.cursor()
 
     # check user
-    cur.execute("SELECT id FROM users WHERE email = %s and password = %s", (email, password))
+    cur.execute("SELECT id, role FROM users WHERE email = %s and password = %s", (email, password))
     user = cur.fetchone()
     if not user:
         return jsonify({'error': 'Invalid credentials!'}), 401
     cur.close()
     conn.close()
 
-    access_token = create_access_token(identity=email, additional_claims={"role": user.role.upper()})
-    refresh_token = create_refresh_token(identity=email)
+    access_token = create_access_token(identity=email, additional_claims={"role": user[1].upper()})
+    refresh_token = create_refresh_token(identity=email, additional_claims={"role": user[1].upper()})
     user_id = user[0]
     return jsonify(access_token=access_token, refresh_token=refresh_token, user_id=user_id), 200
     # return jsonify(access_token=access_token), 200
@@ -99,8 +101,9 @@ def login():
 @jwt_required(refresh=True)
 def refresh():
     current_user = get_jwt_identity()
+    role = get_jwt()["role"]
     # Create a new access token
-    new_access_token = create_access_token(identity=current_user, additional_claims={"role": current_user.role.upper()})
+    new_access_token = create_access_token(identity=current_user, additional_claims={"role": role.upper()})
     return jsonify(access_token=new_access_token)
 
 @auth_bp.route("/service/public/login/google")
@@ -129,7 +132,7 @@ def authorize_google():
             username = cur.execute("SELECT username FROM users WHERE username = %s", (name,))
 
     # check user
-    cur.execute("SELECT id FROM users WHERE email = %s", (email,))
+    cur.execute("SELECT id, role FROM users WHERE email = %s", (email,))
     user = cur.fetchone()
 
     if not user:
@@ -138,7 +141,7 @@ def authorize_google():
                     (name, email,))
         conn.commit()
 
-        cur.execute("SELECT id FROM users WHERE email = %s", (email,))
+        cur.execute("SELECT id, role FROM users WHERE email = %s", (email,))
         user = cur.fetchone()
         user_id = user[0]
     else:
@@ -147,8 +150,8 @@ def authorize_google():
     conn.close()
 
     # Create JWT tokens
-    access_token = create_access_token(identity=email, additional_claims={"role": user.role.upper()})
-    refresh_token = create_refresh_token(identity=email)
+    access_token = create_access_token(identity=email, additional_claims={"role": user[1].upper()})
+    refresh_token = create_refresh_token(identity=email, additional_claims={"role": user[1].upper()})
 
     return jsonify({
         "msg": "Logged in with Google",
