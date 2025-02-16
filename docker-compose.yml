@@ -2,6 +2,7 @@ version: '3.8'
 
 services:
   api-gateway:
+    container_name: pbrs-api-gateway
     build:
       context: ./api-gateway
     ports:
@@ -13,7 +14,7 @@ services:
     depends_on:
       - user-service
     networks:
-      - my-network
+      - pbrs-network
 
   postgres:
     image: postgres:14
@@ -26,7 +27,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - my-network
+      - pbrs-network
 
   jenkins:
     image: jenkins/jenkins:lts
@@ -35,7 +36,7 @@ services:
     volumes:
       - jenkins_home:/var/jenkins_home
     networks:
-      - my-network
+      - pbrs-network
 
   kafka:
     image: wurstmeister/kafka:latest
@@ -47,16 +48,17 @@ services:
       KAFKA_LISTENERS: INSIDE://0.0.0.0:9092,OUTSIDE://0.0.0.0:9092
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
     networks:
-      - my-network
+      - pbrs-network
 
   zookeeper:
     image: wurstmeister/zookeeper:latest
     ports:
       - "9009:2181"
     networks:
-      - my-network
+      - pbrs-network
 
   user-service:
+    container_name: pbrs-user-service
     build:
       context: ./user-service
     environment:
@@ -70,11 +72,29 @@ services:
     depends_on:
       - postgres
     networks:
-      - my-network
+      - pbrs-network
+
+  book-service:
+    container_name: pbrs-book-service
+    build:
+      context: ./book-service
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/pbrs
+      SPRING_DATASOURCE_USERNAME: pbrs_manager
+      SPRING_DATASOURCE_PASSWORD: faw392k892
+    volumes:
+      - .book-service/src:/app/src # onlu for development
+    ports:
+      - "9012:8080"
+    depends_on:
+      - postgres
+    networks:
+      - pbrs-network
 
 volumes:
   postgres_data:
   jenkins_home:
 
 networks:
-  my-network:
+  pbrs-network:
+    name: pbrs-network

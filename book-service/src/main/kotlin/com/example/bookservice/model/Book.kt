@@ -1,6 +1,7 @@
 package com.example.bookservice.model
 
 import com.example.bookservice.domain.Tag
+import com.example.bookservice.utils.TagListConverter
 import jakarta.persistence.*
 
 @Entity
@@ -26,6 +27,7 @@ data class Book(
     @Column(nullable = false)
     var isActive: Boolean = true,
 
-    @ElementCollection(targetClass = Tag::class)
-    var tag: List<Tag> = emptyList()
+    @Column(columnDefinition = "jsonb")
+    @Convert(converter = TagListConverter::class)
+    var tags: List<Tag> = emptyList()
 )

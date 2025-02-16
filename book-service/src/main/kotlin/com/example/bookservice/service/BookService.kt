@@ -2,17 +2,23 @@ package com.example.bookservice.service
 
 import com.example.bookservice.model.Book
 import com.example.bookservice.repository.BookRepository
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 
 @Service
 class BookService(private val bookRepository: BookRepository) {
 
-    fun getBooks(): List<Book> {
-        return bookRepository.findAll()
+    fun getBooks(): List<Book?>? {
+        return bookRepository.findAllBooksWithoutRelations()
     }
 
     fun getBook(id: Long): Book? {
         return bookRepository.findById(id).orElse(null)
+    }
+
+    fun searchBooks(query: String?, genre: String?, year: Int?, pageable: Pageable): Page<Book> {
+        return bookRepository.searchBooks(query, genre, year, pageable)
     }
 
     fun createBook(book: Book): Book {

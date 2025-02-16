@@ -2,6 +2,8 @@ package com.example.bookservice.controller
 
 import com.example.bookservice.model.Book
 import com.example.bookservice.service.BookService
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 
@@ -10,7 +12,7 @@ import org.springframework.web.bind.annotation.*
 class BookController(private val bookService: BookService) {
 
     @GetMapping("/public/books")
-    fun getBooks(): List<Book> {
+    fun getBooks(): List<Book?>? {
         return bookService.getBooks()
     }
 
@@ -18,6 +20,16 @@ class BookController(private val bookService: BookService) {
     fun getBook(@PathVariable id: Long): ResponseEntity<Book?> {
         val book = bookService.getBook(id) ?: return ResponseEntity.notFound().build()
         return ResponseEntity.ok(book)
+    }
+
+    @GetMapping("/public/search")
+    fun searchBooks(
+        @RequestParam(required = false) query: String?,
+        @RequestParam(required = false) genre: String?,
+        @RequestParam(required = false) year: Int?,
+        pageable: Pageable
+    ): Page<Book> {
+        return bookService.searchBooks(query, genre, year, pageable)
     }
 
     @PostMapping("/protected")
