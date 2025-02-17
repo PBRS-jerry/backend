@@ -9,14 +9,17 @@ from config import Config
 from proxy import Proxy
 import logging
 from logging.handlers import RotatingFileHandler
+import util.app_logger
 
-# Set up logging
-logging.basicConfig(
-    filename='app.log',
-    level=logging.DEBUG,
-    format='%(asctime)s %(levelname)s: %(message)s'
-)
-logger = logging.getLogger(__name__)
+logger = util.app_logger.AppLogger("api-gateway", log_dir="log")
+
+# # Set up logging
+# logging.basicConfig(
+#     filename='app.log',
+#     level=logging.DEBUG,
+#     format='%(asctime)s %(levelname)s: %(message)s'
+# )
+# logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 # CORS(app)  # Enable CORS if needed
@@ -89,7 +92,7 @@ def protected_user_service_route(path):
 def unprotected_book_service_route(path):
     return proxy.forward_request('http://pbrs-book-service:8080/book-service/public/' + path, request)
 
-@app.route("/book-service/protected", methods=['POST'])
+@app.route("/book-service/protected", methods=['POST', 'PUT', 'DELETE'])
 @jwt_required()
 @role_required("ADMIN")
 def add_book():
