@@ -68,10 +68,17 @@ def register():
     cur.execute("INSERT INTO users (username, email, password) VALUES (%s, %s, %s)",
                 (username, email, password))
     conn.commit()
+    cur.execute("SELECT id, role FROM users WHERE email = %s", (email,))
+    user = cur.fetchone()
     cur.close()
     conn.close()
 
-    return jsonify({'msg': 'User created'}), 201
+    # Create JWT tokens
+    access_token = create_access_token(identity=email, additional_claims={"role": "USER"})
+    refresh_token = create_refresh_token(identity=email, additional_claims={"role": "USER"})
+
+    return jsonify({'msg': 'User created', 'access_token': access_token, 'refresh_token': refresh_token,
+                    'user_id': user[0]}), 201
 
 @auth_bp.route('/service/public/login', methods=['POST'])
 def login():
