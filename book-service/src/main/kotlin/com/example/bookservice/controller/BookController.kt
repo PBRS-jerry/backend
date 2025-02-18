@@ -6,10 +6,11 @@ import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
+import com.example.bookservice.utils.AppLogger
 
 @RestController
 @RequestMapping("/book-service")
-class BookController(private val bookService: BookService) {
+class BookController(private val bookService: BookService, private val appLogger: AppLogger) {
 
     @GetMapping("/public/books")
     fun getBooks(): List<Book?>? {
@@ -18,6 +19,7 @@ class BookController(private val bookService: BookService) {
 
     @GetMapping("/public/{id}")
     fun getBook(@PathVariable id: Long): ResponseEntity<Book?> {
+        appLogger.info("Getting book with id: $id")
         val book = bookService.getBook(id) ?: return ResponseEntity.notFound().build()
         return ResponseEntity.ok(book)
     }

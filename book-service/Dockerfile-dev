@@ -1,0 +1,17 @@
+FROM eclipse-temurin:17-jdk
+WORKDIR /app
+
+# Copy only necessary files for dependency caching
+COPY build.gradle.kts settings.gradle.kts gradlew /app/
+COPY gradle /app/gradle
+ENV GRADLE_USER_HOME=/app/gradle/.gradle
+RUN ./gradlew build --no-daemon || true
+
+# Copy source code
+COPY ./src /app/src
+
+# Expose port
+EXPOSE 8080
+
+# Run application in dev mode
+CMD ["./gradlew", "bootRun", "--continuous", "--watch-fs"]

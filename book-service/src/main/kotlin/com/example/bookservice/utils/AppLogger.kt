@@ -6,12 +6,24 @@ import java.io.File
 import ch.qos.logback.classic.LoggerContext
 import ch.qos.logback.classic.encoder.PatternLayoutEncoder
 import ch.qos.logback.core.rolling.RollingFileAppender
-import ch.qos.logback.core.rolling.TimeBasedRollingPolicy
 import ch.qos.logback.classic.Level
+import ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy
 import org.springframework.stereotype.Component
 
+data class LoggerConfig(
+    val logDir: String = "../logs",
+    val maxHistory: Int = 30,
+    val logLevel: Level = Level.INFO,
+    val pattern: String = "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n",
+    val maxFileSizeMB: Int = 10,
+    val enableConsoleLogging: Boolean = true
+)
+
 @Component
-class AppLogger(private val appName: String) {
+class AppLogger(
+    private val appName: String = "Book-Service",
+    private val config: LoggerConfig = LoggerConfig()
+) {
     private val logger: Logger = LoggerFactory.getLogger(appName)
 
     init {
@@ -20,59 +32,78 @@ class AppLogger(private val appName: String) {
 
     private fun configureLogger() {
         val loggerContext = LoggerFactory.getILoggerFactory() as LoggerContext
-        val logDir = File("../logs").apply { mkdirs() }
+        val logDir = File(config.logDir).apply { mkdirs() }
 
-        // Create encoder
+        // Create encoder with configurable pattern
         val encoder = PatternLayoutEncoder().apply {
             context = loggerContext
-            pattern = "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+            pattern = config.pattern
             start()
         }
 
         // Configure rolling file appender for all logs
-        val allLogsAppender = RollingFileAppender<ch.qos.logback.classic.spi.ILoggingEvent>().apply {
-            context = loggerContext
-            name = "allLogsAppender"
-            file = "${logDir}/${appName}_all.log"
-            encoder = encoder
-
-            val rollingPolicy = TimeBasedRollingPolicy<ch.qos.logback.classic.spi.ILoggingEvent>().apply {
-                context = loggerContext
-                fileNamePattern = "${logDir}/${appName}_all.%d{yyyy-MM-dd}.log"
-                maxHistory = 30
-                this.parent = this@apply
-                start()
-            }
-
-            rollingPolicy = rollingPolicy
-            start()
-        }
+        val allLogsAppender = createRollingAppender(
+            loggerContext,
+            encoder,
+            "${logDir.path}/${appName}_all",
+            "allLogsAppender"
+        )
 
         // Configure rolling file appender for errors only
-        val errorLogsAppender = RollingFileAppender<ch.qos.logback.classic.spi.ILoggingEvent>().apply {
-            context = loggerContext
-            name = "errorLogsAppender"
-            file = "${logDir}/${appName}_error.log"
-            encoder = encoder
+        val errorLogsAppender = createRollingAppender(
+            loggerContext,
+            encoder,
+            "${logDir.path}/${appName}_error",
+            "errorLogsAppender"
+        )
 
-            val rollingPolicy = TimeBasedRollingPolicy<ch.qos.logback.classic.spi.ILoggingEvent>().apply {
-                context = loggerContext
-                fileNamePattern = "${logDir}/${appName}_error.%d{yyyy-MM-dd}.log"
-                maxHistory = 30
-                this.parent = this@apply
-                start()
-            }
-
-            rollingPolicy = rollingPolicy
-            start()
-        }
-
-        // Add appenders to logger
+        // Configure logger
         (logger as ch.qos.logback.classic.Logger).apply {
             addAppender(allLogsAppender)
             addAppender(errorLogsAppender)
-            level = Level.INFO
+            level = config.logLevel
+
+            // Add console appender if enabled
+            if (config.enableConsoleLogging) {
+                val consoleAppender = ch.qos.logback.core.ConsoleAppender<ch.qos.logback.classic.spi.ILoggingEvent>().apply {
+                    context = loggerContext
+                    name = "consoleAppender"
+                    this.encoder = encoder
+                    start()
+                }
+                addAppender(consoleAppender)
+            }
         }
+    }
+
+    private fun createRollingAppender(
+        context: LoggerContext,
+        encoder: PatternLayoutEncoder,
+        baseFilePath: String,
+        appenderName: String
+    ): RollingFileAppender<ch.qos.logback.classic.spi.ILoggingEvent> {
+        // Create the appender
+        val appender = RollingFileAppender<ch.qos.logback.classic.spi.ILoggingEvent>()
+        appender.context = context
+        appender.name = appenderName
+        appender.file = "$baseFilePath.log"
+        appender.encoder = encoder
+
+        // Create and configure the rolling policy
+        val rollingPolicy = SizeAndTimeBasedRollingPolicy<ch.qos.logback.classic.spi.ILoggingEvent>()
+        rollingPolicy.context = context
+        rollingPolicy.fileNamePattern = "$baseFilePath.%d{yyyy-MM-dd}.%i.log"
+        rollingPolicy.maxHistory = config.maxHistory
+        rollingPolicy.setMaxFileSize(ch.qos.logback.core.util.FileSize.valueOf("${config.maxFileSizeMB}MB"))
+        rollingPolicy.setTotalSizeCap(ch.qos.logback.core.util.FileSize.valueOf("${config.maxFileSizeMB * 10}MB"))
+        rollingPolicy.setParent(appender)
+
+        // Start the components
+        rollingPolicy.start()
+        appender.rollingPolicy = rollingPolicy
+        appender.start()
+
+        return appender
     }
 
     fun info(message: String, vararg params: Pair<String, Any?>) {
@@ -102,31 +133,5 @@ class AppLogger(private val appName: String) {
     private fun buildLogMessage(message: String, params: Array<out Pair<String, Any?>>): String {
         return if (params.isEmpty()) message
         else "$message ${params.joinToString(", ") { "${it.first}=${it.second}" }}"
-    }
-}
-
-// Annotation for logging method execution
-@Target(AnnotationTarget.FUNCTION)
-@Retention(AnnotationRetention.RUNTIME)
-annotation class LogExecution
-
-// Aspect for handling the @LogExecution annotation
-@Aspect
-@Component
-class LoggingAspect(private val logger: AppLogger) {
-
-    @Around("@annotation(LogExecution)")
-    fun logExecutionTime(joinPoint: ProceedingJoinPoint): Any? {
-        val methodName = joinPoint.signature.name
-        logger.info("Entering method: $methodName")
-
-        try {
-            val result = joinPoint.proceed()
-            logger.info("Exiting method: $methodName")
-            return result
-        } catch (e: Exception) {
-            logger.error("Exception in method: $methodName", e)
-            throw e
-        }
     }
 }

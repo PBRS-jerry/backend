@@ -4,10 +4,11 @@ import com.example.userservice.model.User
 import com.example.userservice.service.UserService
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
+import com.example.userservice.utils.AppLogger
 
 @RestController
 @RequestMapping("/user-service")
-class UserController(private val userService: UserService) {
+class UserController(private val userService: UserService, private val appLogger: AppLogger) {
 
     @GetMapping("/public/users")
     fun getUsers(): String {
@@ -16,6 +17,7 @@ class UserController(private val userService: UserService) {
 
     @GetMapping("/protected/{id}")
     fun getUser(@PathVariable id: Long): ResponseEntity<User?> {
+        appLogger.info("Getting user with id: $id")
         val user = userService.getUser(id) ?: return ResponseEntity.notFound().build()
         return ResponseEntity.ok(user)
     }

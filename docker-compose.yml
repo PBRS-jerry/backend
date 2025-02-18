@@ -57,39 +57,87 @@ services:
     networks:
       - pbrs-network
 
+#  user-service:
+#    container_name: pbrs-user-service
+#    build:
+#      context: ./user-service
+#    environment:
+#      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/pbrs
+#      SPRING_DATASOURCE_USERNAME: pbrs_manager
+#      SPRING_DATASOURCE_PASSWORD: faw392k892
+#    volumes:
+#      - ./user-service/src:/app/src # onlu for development
+#    ports:
+#      - "9010:8080"
+#    depends_on:
+#      - postgres
+#    networks:
+#      - pbrs-network
+#
+#  book-service:
+#    container_name: pbrs-book-service
+#    build:
+#      context: ./book-service
+#    environment:
+#      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/pbrs
+#      SPRING_DATASOURCE_USERNAME: pbrs_manager
+#      SPRING_DATASOURCE_PASSWORD: faw392k892
+#    volumes:
+#      - ./book-service/src:/app/src # onlu for development
+#    ports:
+#      - "9012:8080"
+#    depends_on:
+#      - postgres
+#    networks:
+#      - pbrs-network
+
   user-service:
     container_name: pbrs-user-service
     build:
       context: ./user-service
+      dockerfile: Dockerfile-dev
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/pbrs
       SPRING_DATASOURCE_USERNAME: pbrs_manager
       SPRING_DATASOURCE_PASSWORD: faw392k892
+      SPRING_DEVTOOLS_RESTART_ENABLED: true
+      SPRING_DEVTOOLS_LIVERELOAD_ENABLED: true
+      GRADLE_USER_HOME: /home/gradle/.gradle
+      GRADLE_OPTS: -Dorg.gradle.unsafe.watch-fs=true
     volumes:
-      - .user-service/src:/app/src # onlu for development
+      - ./user-service/src:/app/src # onlu for development
+      - ./user-service/.gradle:/home/.gradle
     ports:
       - "9010:8080"
     depends_on:
       - postgres
     networks:
       - pbrs-network
+    command: ["./gradlew", "bootRun", "--continuous"]
 
   book-service:
     container_name: pbrs-book-service
     build:
       context: ./book-service
+      dockerfile: Dockerfile-dev
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/pbrs
       SPRING_DATASOURCE_USERNAME: pbrs_manager
       SPRING_DATASOURCE_PASSWORD: faw392k892
+      SPRING_DEVTOOLS_RESTART_ENABLED: true
+      SPRING_DEVTOOLS_LIVERELOAD_ENABLED: true
+      GRADLE_USER_HOME: /home/gradle/.gradle
+      GRADLE_OPTS: -Dorg.gradle.unsafe.watch-fs=true
     volumes:
-      - .book-service/src:/app/src # onlu for development
+      - ./book-service/src:/app/src # onlu for development
+      - ./book-service/.gradle:/home/.gradle
     ports:
       - "9012:8080"
     depends_on:
       - postgres
     networks:
       - pbrs-network
+    command: ["./gradlew", "bootRun", "--continuous"]
 
 volumes:
   postgres_data:
